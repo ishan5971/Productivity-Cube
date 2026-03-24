@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productivity Cube | Dynamic Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        :root {
+            --bg-color: #e8f5e9;
+            --text-color: #2e7d32;
+            --border-color: #a5d6a7;
+            --dot-color: #81c784;
+            --hover-color: #1b5e20;
+            --disabled-bg: #c8e6c9;
+            --card-bg: #ffffff;
+            --card-shadow: rgba(0,0,0,0.05);
+            --header-bg: #ffffff;
+            --subtext: #666666;
+            --meta-text: #999999;
+        }
+
+        body.dark {
+            --card-bg: #1a1a2e;
+            --card-shadow: rgba(0,0,0,0.3);
+            --header-bg: #12121f;
+            --subtext: #aaaaaa;
+            --meta-text: #777777;
+            --neon-glow: var(--dot-color);
+        }
+
+        body.dark .cards {
+            border-color: var(--border-color);
+            box-shadow: 0 0 0 1px var(--border-color),
+                        0 0 14px -2px var(--dot-color),
+                        0 4px 24px rgba(0,0,0,0.4);
+        }
+
+        body.dark header {
+            box-shadow: 0 2px 18px rgba(0,0,0,0.5),
+                        0 1px 0 var(--border-color),
+                        0 2px 12px -4px var(--dot-color);
+        }
+
+        body.dark .cubegraphic {
+            box-shadow: 0 0 12px -2px var(--dot-color),
+                        inset 0 0 10px color-mix(in srgb, var(--dot-color) 15%, transparent);
+        }
+
+        body.dark button:not(.closebtn):not(.dark-toggle):not(:disabled) {
+            box-shadow: 0 0 10px -2px var(--dot-color);
+        }
+        body.dark button:not(.closebtn):not(.dark-toggle):not(:disabled):hover {
+            box-shadow: 0 0 16px -1px var(--dot-color);
+        }
+
+        
+        body.dark .dark-toggle {
+            box-shadow: 0 0 8px -1px var(--dot-color);
+        }
+
+        body.dark .statusdot.connected {
+            box-shadow: 0 0 8px 2px var(--dot-color);
+            animation: blink-neon 1.2s infinite;
+        }
+        @keyframes blink-neon {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px 2px var(--dot-color); }
+            50%       { opacity: 0.25; box-shadow: none; }
+        }
+
+        
+        body.dark .sidebar.open {
+            box-shadow: -2px 0 20px -4px var(--dot-color),
+                        -4px 0 15px rgba(0,0,0,0.3);
+        }
+
+        
+        body.dark .inputgroup input:focus,
+        body.dark .face-selector-input:focus {
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--dot-color) 50%, transparent);
+        }
+
+        body.dark .bar-fill {
+            filter: drop-shadow(0 0 4px var(--dot-color));
+        }
+
+        
+        body.dark .ai-badge {
+            box-shadow: 0 0 8px -1px var(--dot-color);
+        }
+
+        
+        .reset-btn {
+            background-color: #c62828;
+            color: white;
+        }
+        .reset-btn:hover { background-color: #8e0000; }
+        body.dark .reset-btn {
+            background-color: #7f0000;
+            box-shadow: 0 0 10px -2px #ef5350;
+        }
+        body.dark .reset-btn:hover { background-color: #4e0000; }
+
+        
+        body.dark .donut-chart {
+            filter: drop-shadow(0 0 8px color-mix(in srgb, var(--dot-color) 50%, transparent));
+        }
+
+        
+        body.dark .weekly-chart-wrap,
+        body.dark .ai-summary-box {
+            border-color: var(--border-color);
+            box-shadow: 0 0 0 1px var(--border-color),
+                        0 0 18px -4px var(--dot-color),
+                        0 4px 24px rgba(0,0,0,0.4);
+        }
+
+        body, .cards, .cubegraphic, button, input, .sidebar {
+            transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header {
+            width: 100%;
+            padding: 32px;
+            text-align: center;
+            background-color: var(--header-bg);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        .header-actions {
+            position: absolute;
+            right: 32px;
+            top: 32px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .dark-toggle {
+            position: absolute;
+            left: 32px;
+            top: 32px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background 0.2s, transform 0.2s;
+        }
+        .dark-toggle:hover {
+            background: var(--border-color);
+            transform: scale(1.1);
+        }
+
+        .dashboardcontainer {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 32px;
+            padding: 48px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .cards {
+            background: var(--card-bg);
+            padding: 32px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px var(--card-shadow);
+            text-align: center;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .statusdot {
+            height: 12px;
+            width: 12px;
+            background-color: #9e9e9e;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            transition: background-color 0.3s ease;
+        }
+        .statusdot.connected {
+            background-color: var(--dot-color);
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        .timerdisplay {
+            font-size: 64px;
+            font-weight: bold;
+            margin: 16px 0;
+            color: var(--text-color);
+        }
+
+        .cubegraphic {
+            width: 100px;
+            height: 100px;
+            background-color: var(--border-color);
+            margin: 20px auto;
+            border: 3px solid var(--text-color);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        button {
+            background-color: var(--text-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: var(--hover-color); }
+        button:disabled {
+            background-color: var(--disabled-bg);
+            cursor: not-allowed;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+
+        .daily-stat-block {
+            margin: 12px 0 20px;
+        }
+        .stat-num {
+            font-size: 52px;
+            font-weight: 800;
+            color: var(--text-color);
+            line-height: 1;
+        }
+        .stat-unit {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-color);
+            opacity: 0.7;
+            margin-left: 2px;
+        }
+        .stat-label {
+            font-size: 12px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--subtext);
+            margin-top: 6px;
+        }
+        .stat-top-task {
+            font-size: 13px;
+            color: var(--subtext);
+            margin-top: 10px;
+        }
+        .stat-top-task strong {
+            color: var(--text-color);
+        }
+
+        
+        .stats-container-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 48px;
+        }
+        .donut-chart {
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 30px auto;
+            position: relative;
+        }
+        .donut-inner {
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background-color: var(--card-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        .legend-color {
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        
+        .weekly-container-view {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 48px;
+        }
+
+        .weekly-chart-wrap {
+            width: 100%;
+            max-width: 640px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 4px 15px var(--card-shadow);
+        }
+
+        #weeklybars {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            height: 200px;
+            align-items: end;
+            margin: 24px 0 0;
+        }
+
+        .bar-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            position: relative;
+            cursor: pointer;
+        }
+        .bar-col:hover .bar-tooltip { opacity: 1; pointer-events: auto; }
+
+        .bar-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.82);
+            color: #fff;
+            font-size: 12px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            white-space: nowrap;
+            margin-bottom: 6px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 10;
+            line-height: 1.6;
+        }
+
+        .bar-time {
+            font-size: 10px;
+            color: var(--subtext);
+            font-weight: bold;
+            margin-bottom: 4px;
+            min-height: 14px;
+        }
+
+        .bar-wrap {
+            width: 100%;
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .bar-fill {
+            width: 100%;
+            border-radius: 6px 6px 0 0;
+            transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-height: 0;
+        }
+
+        .bar-label {
+            text-align: center;
+            margin-top: 6px;
+        }
+        .bar-day {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .bar-date {
+            font-size: 10px;
+            color: var(--meta-text);
+        }
+
+        
+        .ai-summary-box {
+            display: none;
+            width: 100%;
+            max-width: 640px;
+            margin-top: 24px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 28px 32px;
+            box-shadow: 0 4px 15px var(--card-shadow);
+        }
+        .ai-summary-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .ai-badge {
+            background: var(--text-color);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 3px 10px;
+            border-radius: 20px;
+        }
+        #aisummarytext {
+            font-size: 15px;
+            line-height: 1.7;
+            color: var(--subtext);
+        }
+
+        
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 320px;
+            max-width: 100%;
+            height: 100%;
+            background-color: var(--card-bg);
+            box-shadow: -4px 0 15px rgba(0,0,0,0.1);
+            padding: 32px;
+            transition: right 0.3s ease, background-color 0.4s ease;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .sidebar.open { right: 0; }
+
+        .overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            z-index: 999;
+        }
+        .overlay.show { display: block; }
+
+        .inputgroup { margin-bottom: 16px; text-align: left; }
+        .inputgroup label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: bold; }
+        .inputgroup input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: inherit;
+            color: var(--text-color);
+            background: var(--card-bg);
+        }
+        .inputgroup input:focus { outline: none; border-color: var(--text-color); }
+
+        .closebtn {
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+            margin-top: 12px;
+        }
+        .closebtn:hover { background: var(--bg-color); }
+
+        .face-selector-container { margin-bottom: 16px; font-size: 14px; font-weight: bold; }
+        .face-selector-input {
+            width: 50px;
+            padding: 5px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            background: var(--card-bg);
+            font-weight: bold;
+            text-align: center;
+        }
+        .face-selector-input:focus { outline: none; border-color: var(--text-color); }
+
+        .inputgroup input + input {
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--subtext);
+        }
+
+        
+        .limit-warning {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: #fff3e0;
+            border: 1px solid #ffcc80;
+            color: #e65100;
+            font-size: 13px;
+            font-weight: 600;
+            animation: pulse-warn 1.5s ease-in-out infinite;
+        }
+        body.dark .limit-warning {
+            background: #2a1500;
+            border-color: #5c3200;
+            color: #ffcc80;
+        }
+        @keyframes pulse-warn {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.55; }
+        }
+        .limit-warning.show { display: block; }
+
+        @media (max-width: 800px) {
+            .dashboardcontainer { grid-template-columns: 1fr; padding: 24px; gap: 24px; }
+            header { padding: 24px 16px; display: flex; flex-direction: column; align-items: center; }
+            .dark-toggle { position: static; margin-bottom: 12px; }
+            .header-actions { position: static; margin-top: 16px; display: flex; justify-content: center; }
+            .timerdisplay { font-size: 48px; }
+            .stats-container-view, .weekly-container-view { padding: 24px; }
+            #weeklybars { height: 160px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button id="darktogglebtn" class="dark-toggle" title="Switch to Dark Mode">🌙</button>
+        <h1>PRODUCTIVITY CUBE</h1>
+        <p><span id="statusdot" class="statusdot"></span> <span id="statustext">Cube disconnected</span></p>
+        <div class="header-actions">
+            <button id="connectbtn">Connect Cube</button>
+            <button id="resetbtn" class="reset-btn" title="Wipe all hardware flash memory">Reset Hardware</button>
+            <button id="opensettings">Settings</button>
+        </div>
+    </header>
+
+    
+    <div id="mainview" class="dashboardcontainer">
+
+        <div class="cards">
+            <h3>Current Orientation</h3>
+            <div class="face-selector-container">
+                <label for="faceselector">Face pointing up: </label>
+                <input type="number" id="faceselector" class="face-selector-input" min="1" max="6" value="1">
+            </div>
+            <div class="cubegraphic" id="cubeside">FACE 1</div>
+            <p><strong>Active Task:</strong> <span id="activetaskdisplay">DSA</span></p>
+        </div>
+
+        <div class="cards">
+            <h3>Activity Timer</h3>
+            <div class="timerdisplay">00:00</div>
+            <div id="limitwarning" class="limit-warning">⏰ Time limit reached!</div>
+        </div>
+
+        
+        <div class="cards" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <h3>Today's Stats</h3>
+            <div class="daily-stat-block">
+                <div id="dailytotalstat">
+                    <span class="stat-num">0<span class="stat-unit">m</span></span>
+                </div>
+                <div class="stat-label">Total productive time</div>
+                <div class="stat-top-task">Top task: <strong id="toptaskstat">—</strong></div>
+            </div>
+            <button id="viewstatsbtn" style="margin-top: 12px;">View Stats</button>
+        </div>
+
+    </div>
+
+    
+    <div id="statsview" class="stats-container-view">
+        <div class="cards" style="width: 100%; max-width: 600px;">
+            <h2 style="color: var(--text-color); margin-top: 0;">Daily Breakdown</h2>
+
+            <div id="donutchart" class="donut-chart">
+                <div class="donut-inner">
+                    <div style="font-size: 14px; color: var(--subtext); font-weight: bold; letter-spacing: 1px;">TODAY</div>
+                    <div id="total-time-display" style="font-size: 36px; font-weight: bold; margin-top: 4px; color: var(--text-color);">0 hr, 0 mins</div>
+                </div>
+            </div>
+
+            <div id="legend-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; text-align: left;"></div>
+
+            <div style="display: flex; gap: 12px;">
+                <button id="backbtn" style="flex: 1; padding: 14px;">← Back</button>
+                <button id="viewdetailedbtn" style="flex: 1; padding: 14px;">View Detailed Analytics →</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="weeklyview" class="weekly-container-view">
+
+        <div class="weekly-chart-wrap">
+            <h2 style="margin-top: 0; color: var(--text-color);">Weekly Overview</h2>
+            <p style="font-size: 14px; color: var(--subtext); margin: 0;">Productive hours per day. Hover over a bar for a breakdown.</p>
+            <div id="weeklybars"></div>
+        </div>
+
+        <div id="aisummarybox" class="ai-summary-box">
+            <div class="ai-summary-header">
+                <span class="ai-badge">KEY INSIGHTS</span>
+            </div>
+            <div id="aisummarytext">Loading...</div>
+        </div>
+
+        <div style="margin-top: 24px; width: 100%; max-width: 640px;">
+            <button id="backfromweeklybtn" style="width: 100%; padding: 14px;">← Back to Daily Stats</button>
+        </div>
+
+    </div>
+
+    <div id="overlay" class="overlay"></div>
+
+    <div id="sidebar" class="sidebar">
+        <h2 id="settingsheader" style="margin-top: 0; border-bottom: 2px solid var(--bg-color); padding-bottom: 10px;">Edit Tasks</h2>
+
+        <div class="inputgroup">
+            <label>Face 1</label>
+            <input type="text" class="taskinput" value="DSA">
+            <input type="number" class="limitinput" min="0" placeholder="Limit (mins, 0 = none)">
+        </div>
+        <div class="inputgroup">
+            <label>Face 2</label>
+            <input type="text" class="taskinput" value="PHYSICS">
+            <input type="number" class="limitinput" min="0" placeholder="Limit (mins, 0 = none)">
+        </div>
+        <div class="inputgroup">
+            <label>Face 3</label>
+            <input type="text" class="taskinput" value="DESIGN THINKING">
+            <input type="number" class="limitinput" min="0" placeholder="Limit (mins, 0 = none)">
+        </div>
+        <div class="inputgroup">
+            <label>Face 4</label>
+            <input type="text" class="taskinput" value="MATHEMATICS">
+            <input type="number" class="limitinput" min="0" placeholder="Limit (mins, 0 = none)">
+        </div>
+        <div class="inputgroup">
+            <label>Face 5</label>
+            <input type="text" class="taskinput" value="CHEMISTRY">
+            <input type="number" class="limitinput" min="0" placeholder="Limit (mins, 0 = none)">
+        </div>
+        <div class="inputgroup">
+            <label>Face 6</label>
+            <input type="text" class="taskinput" value="Break">
+            <input type="number" class="limitinput" min="0" placeholder="Limit (mins, 0 = none)">
+        </div>
+
+        <button id="savetasksbtn" style="margin-top: auto;">Save Tasks</button>
+        <button id="closesettings" class="closebtn">Cancel</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
